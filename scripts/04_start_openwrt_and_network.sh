@@ -123,6 +123,17 @@ if [ -f "$STATE_DIR/container.pid" ]; then
     rm -f "$STATE_DIR/container.pid"
 fi
 
+# The old container owned eth0; once it is gone the NIC is back in the host
+# netns, so re-detect the LAN interface before moving it.
+if ! ip link show "$LAN_IF" >/dev/null 2>&1; then
+    for iface in eth0 usb0 eth1; do
+        if ip link show "$iface" >/dev/null 2>&1; then
+            LAN_IF="$iface"
+            break
+        fi
+    done
+fi
+
 # ------------------------------------------------------------------------------
 # Namespace flags. Mount/UTS/net exist on the stock kernel; PID/IPC appear only
 # after the custom kernel is flashed.
@@ -231,17 +242,13 @@ sleep 2
 owrt_exec "/etc/init.d/network reload" 2>/dev/null
 owrt_exec "/etc/init.d/firewall reload" 2>/dev/null
 owrt_exec "/etc/init.d/dnsmasq restart" 2>/dev/null
+# netifd applies 'network reload' asynchronously; let it settle before the
+# IPv6 LAN address is added, otherwise it gets flushed again.
+sleep 2
 
-# Native IPv6: same carrier /64 on LAN eth0; odhcpd advertises it via RA.
-# No NAT66, no ULA.
-if [ -n "$V6_NET" ]; then
-    $NSENTER -t "$CONTAINER_PID" -n -- ip -6 addr add "$V6_LAN_ADDR/64" dev eth0 2>/dev/null
-    $NSENTER -t "$CONTAINER_PID" -n -- ip -6 addr add fe80::2/64 dev "$VETH_OWRT" 2>/dev/null
-    $NSENTER -t "$CONTAINER_PID" -n -- ip -6 route replace default via fe80::1 dev "$VETH_OWRT"
-    $NSENTER -t "$CONTAINER_PID" -n -- ip -6 route replace "$V6_NET" dev eth0
-    owrt_exec "/etc/init.d/dnsmasq restart" 2>/dev/null
-    owrt_exec "/etc/init.d/odhcpd restart" 2>/dev/null
-fi
+# Native IPv6: the LAN address, /64 route and odhcpd/dnsmasq restarts are done
+# in the host-forwarding block below, after netifd's reload has settled.
+# (Adding them here got flushed by the asynchronous 'network reload'.)
 
 # ------------------------------------------------------------------------------
 # Host forwarding.
@@ -260,6 +267,13 @@ if [ -n "$V6_NET" ]; then
     echo 1 > "/proc/sys/net/ipv6/conf/$RMNET_IF/forwarding" 2>/dev/null
     echo 1 > "/proc/sys/net/ipv6/conf/$VETH_HOST/forwarding" 2>/dev/null
     ip -6 addr add fe80::1/64 dev "$VETH_HOST" 2>/dev/null
+    # The container's default route needs the host-side fe80::1 to exist first.
+    $NSENTER -t "$CONTAINER_PID" -n -- ip -6 route replace default via fe80::1 dev "$VETH_OWRT"
+    # netifd has settled by now, so these addresses are no longer flushed.
+    $NSENTER -t "$CONTAINER_PID" -n -- ip -6 addr add "$V6_LAN_ADDR/64" dev eth0 2>/dev/null
+    $NSENTER -t "$CONTAINER_PID" -n -- ip -6 addr add fe80::2/64 dev "$VETH_OWRT" 2>/dev/null
+    $NSENTER -t "$CONTAINER_PID" -n -- ip -6 route replace "$V6_NET" dev eth0
+    log "IPv6 LAN: $V6_LAN_ADDR/64 on eth0"
     ip -6 route replace "$V6_NET" dev "$VETH_HOST" table 200
     ip -6 rule del iif "$RMNET_IF" lookup 200 2>/dev/null
     ip -6 rule add iif "$RMNET_IF" lookup 200 pref 1000
@@ -272,6 +286,8 @@ if [ -n "$V6_NET" ]; then
         ip -6 rule del from "$V6_NET" lookup 201 2>/dev/null
         ip -6 rule add from "$V6_NET" lookup 201 pref 1001
     fi
+    owrt_exec "/etc/init.d/dnsmasq restart" 2>/dev/null
+    owrt_exec "/etc/init.d/odhcpd restart" 2>/dev/null
 fi
 
 # ------------------------------------------------------------------------------
