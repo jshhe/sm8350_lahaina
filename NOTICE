@@ -1,0 +1,40 @@
+sm8350_lahaina
+OnePlus 9 Pro (SM8350 / lemonadep) OpenWrt 5G CPE kernel and tooling
+Copyright (C) 2026 sm8350_lahaina contributors
+
+This repository is licensed under the GNU General Public License, version 2.
+See LICENSE for the full text.
+
+It contains or is derived from the following third-party work:
+
+1. Linux kernel — GPL-2.0
+   The kernel config, patches and build scripts target the OnePlusOSS kernel
+   source for SM8350:
+   https://github.com/OnePlusOSS/android_kernel_oneplus_sm8350
+   (branch oneplus/sm8350_u_14.0.0_oneplus9)
+
+2. Realtek r8152 USB Ethernet driver — GPL-2.0-only
+   Files: drivers/r8152/r8152.c, drivers/r8152/compatibility.h
+   Copyright (c) 2024 Realtek Semiconductor Corp.
+   Version 2.22.1, adds RTL8156/RTL8156B 2.5G support.
+
+3. Realtek rtl_nic firmware — redistributable, all rights reserved
+   Files: firmware/rtl_nic/*.fw
+   Copyright (c) 2010 Realtek Semiconductor Corporation
+   The full permission notice is included at
+   firmware/rtl_nic/LICENCE.rtlwifi_firmware.txt
+
+4. AnyKernel3 — GPL-2.0
+   File: anykernel/anykernel.sh is derived from AnyKernel3 by osm0sis.
+   https://github.com/osm0sis/AnyKernel3
+
+5. KABI symbol CRC table
+   File: configs/phone_kabi_crc.json
+   Contains CRC32 values of exported kernel symbols as required by the
+   prebuilt vendor modules of the target device. It contains no vendor
+   source code and no proprietary binary data.
+
+NOT INCLUDED IN THIS REPOSITORY
+Android device firmware, boot images, partition backups, vendor blobs and
+any other proprietary device content are not part of this repository and
+are not redistributed here.

@@ -1,0 +1,39 @@
+# Large local artifacts (never push these to GitHub)
+kernel/
+modules_and_devicetree/
+firmware_LE2120_*/
+payload.bin
+output/
+.tmp/
+toolchain/
+openwrt_rootfs/
+*.img
+*.zip
+*.tar.gz
+*.apk
+
+# Local partition backups / reports
+full_backup_*/
+backup_merged_*/
+
+# Build artifacts / screenshots
+artifacts/
+*.ko
+*.jpg
+*.png
+
+# Personal notes and exports
+turn_*.txt
+*.json
+!configs/phone_kabi_crc.json
+
+# Build outputs
+Image
+r8152.ko
+AnyKernel3/
+magisk_out/
+r8152-module/
+
+# Python
+__pycache__/
+*.pyc

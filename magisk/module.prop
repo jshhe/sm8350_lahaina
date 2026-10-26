@@ -1,0 +1,6 @@
+id=op9p_r8152_2p5g
+name=OnePlus 9 Pro RTL8156B 2.5G USB NIC
+version=v2.22.1
+versionCode=20260603
+author=OpenCode
+description=Realtek r8152 v2.22.1 for RTL8156/RTL8156B 2.5G USB Ethernet on the OnePlus 9 Pro 5.4.254 kernel. Includes rtl_nic firmware files.
