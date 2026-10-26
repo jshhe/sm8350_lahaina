@@ -110,6 +110,7 @@ while true; do
     sleep 30
     [ -f /data/openwrt/disable_autorun ] && continue
     ensure_wan
+    [ -f /data/openwrt/scripts/service_power_guard.sh ] && sh /data/openwrt/scripts/service_power_guard.sh
     if ! container_running; then
         log "container not running, restarting"
         sh /data/openwrt/scripts/04_start_openwrt_and_network.sh >> "$LOG" 2>&1
