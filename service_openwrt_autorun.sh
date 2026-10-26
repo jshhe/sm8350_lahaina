@@ -56,6 +56,7 @@ ensure_wan() {
             ip rule del pref 101 2>/dev/null
             ip rule add from 10.200.1.0/30 lookup 100 pref 100
             ip rule add iif "$W" to 10.200.1.0/30 lookup main pref 101
+            ip rule | grep -q 'to 10.200.1.0/30 lookup main' || ip rule add to 10.200.1.0/30 lookup main pref 90
             ;;
     esac
 }

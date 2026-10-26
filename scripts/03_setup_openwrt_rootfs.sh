@@ -163,6 +163,24 @@ config forwarding
     option dest 'wan'
 EOF
 
+# Allow the Android host (10.200.1.1) to reach LuCI/SSH on the veth WAN.
+cat >> "$DEST_DIR/etc/config/firewall" <<'EOF'
+
+config rule
+    option name 'Allow-Host-UI'
+    option src 'wan'
+    option src_ip '10.200.1.1'
+    option proto 'tcp'
+    option dest_port '80 443'
+    option target 'ACCEPT'
+EOF
+
+# Host access arrives from an RFC1918 source on the veth, so disable the
+# uhttpd RFC1918 filter (the firewall still restricts it to 10.200.1.1).
+if [ -f "$DEST_DIR/etc/config/uhttpd" ]; then
+    sed -i "s/option rfc1918_filter '1'/option rfc1918_filter '0'/" "$DEST_DIR/etc/config/uhttpd"
+fi
+
 cat > "$DEST_DIR/etc/config/dhcp" <<'EOF'
 config dnsmasq
     option domainneeded '1'

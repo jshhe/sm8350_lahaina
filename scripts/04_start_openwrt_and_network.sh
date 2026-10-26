@@ -314,6 +314,11 @@ ip rule del pref 100 2>/dev/null
 ip rule del pref 101 2>/dev/null
 ip rule add from "$HOST_NET" lookup "$TABLE_ID" pref 100
 ip rule add iif "$RMNET_IF" to "$HOST_NET" lookup main pref 101
+# Host-originated traffic to the container's veth subnet must use the main
+# table's on-link route instead of the 5G default.  Needed for phone-browser
+# LuCI at http://10.200.1.2/ and for host-side SSH to the container.
+ip rule del pref 90 2>/dev/null
+ip rule add to "$HOST_NET" lookup main pref 90
 
 # IPv6: intentionally not configured yet. Do not add NAT66 here.
 # Native IPv6 requires sharing the carrier /64 via NDP proxy; see IPV6_NOTES.md.
