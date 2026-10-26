@@ -17,10 +17,13 @@ set -e
 
 TAR_FILE="${1:-}"
 DEST_DIR="/data/openwrt/rootfs"
-MODDIR="/data/adb/openwrt"
+MODDIR="/data/openwrt/scripts"
 
 if [ -z "$TAR_FILE" ]; then
     for f in \
+        /data/openwrt/images/openwrt-21.02.7-armvirt-64-default-rootfs.tar.gz \
+        /data/openwrt/images/openwrt-23.05.5-armsr-armv8-rootfs.tar.gz \
+        /data/openwrt/images/openwrt-armsr-armv8-generic-rootfs.tar.gz \
         /sdcard/openwrt-21.02.7-armvirt-64-default-rootfs.tar.gz \
         /sdcard/openwrt-23.05.5-armsr-armv8-rootfs.tar.gz \
         /sdcard/openwrt-armsr-armv8-generic-rootfs.tar.gz; do
@@ -33,7 +36,7 @@ fi
 
 if [ -z "$TAR_FILE" ] || [ ! -f "$TAR_FILE" ]; then
     echo "[!] No rootfs tarball found."
-    echo "    Push one of these to /sdcard/ and rerun:"
+    echo "    Put one of these in /data/openwrt/images/ and rerun:"
     echo "      openwrt-21.02.7-armvirt-64-default-rootfs.tar.gz  (stock kernel / fw3)"
     echo "      openwrt-23.05.5-armsr-armv8-rootfs.tar.gz         (custom kernel / fw4)"
     exit 1

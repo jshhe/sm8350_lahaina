@@ -11,9 +11,9 @@
 #   sh 05b_cpu_charge_guard.sh          # 常驻循环
 # ==============================================================================
 
-LOG=/data/openwrt/power_guard.log
-PIDFILE=/data/adb/openwrt/power_guard.pid
-mkdir -p /data/openwrt /data/adb/openwrt
+LOG=/data/openwrt/logs/power_guard.log
+PIDFILE=/data/openwrt/run/power_guard.pid
+mkdir -p /data/openwrt/logs /data/openwrt/run
 
 CPU7=/sys/devices/system/cpu/cpu7/online
 P0=/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq

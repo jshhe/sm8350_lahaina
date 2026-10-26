@@ -19,8 +19,8 @@ stop drm 2>/dev/null || true
 stop bluetooth 2>/dev/null || true
 
 echo "[2/4] CPU/电池守护（X1 离线 + 50~60% 停充）..."
-if [ -x /data/adb/openwrt/05b_cpu_charge_guard.sh ]; then
-    sh /data/adb/openwrt/05b_cpu_charge_guard.sh --once
+if [ -x /data/openwrt/scripts/05b_cpu_charge_guard.sh ]; then
+    sh /data/openwrt/scripts/05b_cpu_charge_guard.sh --once
 else
     echo "[!] 05b_cpu_charge_guard.sh 不存在，跳过"
 fi

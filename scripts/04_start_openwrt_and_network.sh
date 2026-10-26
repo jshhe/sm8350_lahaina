@@ -10,11 +10,13 @@
 # IPv6 design note: do NOT use NAT66. Native IPv6 requires the carrier /64
 # to be shared with the LAN via NDP proxy / prefix sharing; see IPV6_NOTES.md.
 #
-# Run as root (adb shell su -c "sh /data/adb/openwrt/04_start_openwrt_and_network.sh").
+# Run as root (adb shell su -c "sh /data/openwrt/scripts/04_start_openwrt_and_network.sh").
 # ==============================================================================
 
 ROOTFS="/data/openwrt/rootfs"
 STATE_DIR="/data/openwrt"
+RUN_DIR="/data/openwrt/run"
+LOG_DIR="/data/openwrt/logs"
 LAN_IF="${LAN_IF:-eth0}"
 VETH_HOST="veth-host"
 VETH_OWRT="veth-owrt"
@@ -27,7 +29,7 @@ CONTAINER_PID=""
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 
 [ -d "$ROOTFS" ] || { log "ERROR: $ROOTFS not found; run 03_setup_openwrt_rootfs.sh first"; exit 1; }
-mkdir -p "$STATE_DIR"
+mkdir -p "$STATE_DIR" "$RUN_DIR" "$LOG_DIR"
 
 # ------------------------------------------------------------------------------
 # Locate BusyBox. Android's toybox ip does not implement 'ip link ... netns';
@@ -112,15 +114,15 @@ fi
 # ------------------------------------------------------------------------------
 # Stop a previous container if present.
 # ------------------------------------------------------------------------------
-if [ -f "$STATE_DIR/container.pid" ]; then
-    OLD_PID=$(cat "$STATE_DIR/container.pid")
+if [ -f "$RUN_DIR/container.pid" ]; then
+    OLD_PID=$(cat "$RUN_DIR/container.pid")
     if [ -d "/proc/$OLD_PID" ]; then
         log "Stopping previous container PID $OLD_PID"
         kill -TERM "$OLD_PID" 2>/dev/null
         sleep 2
         kill -KILL "$OLD_PID" 2>/dev/null
     fi
-    rm -f "$STATE_DIR/container.pid"
+    rm -f "$RUN_DIR/container.pid"
 fi
 
 # The old container owned eth0; once it is gone the NIC is back in the host
@@ -170,14 +172,14 @@ $UNSHARE $NS_FLAGS /system/bin/sh -c '
     mount --bind /sys "$ROOTFS/sys" 2>/dev/null
     export PATH=/usr/sbin:/usr/bin:/sbin:/bin
     exec /system/bin/chroot "$ROOTFS" /sbin/init
-' sh "$ROOTFS" </dev/null >/data/openwrt/init.log 2>&1 &
+' sh "$ROOTFS" </dev/null >$LOG_DIR/init.log 2>&1 &
 UNSHARE_PID=$!
 sleep 3
 CONTAINER_PID=$(ps -A -o PID,PPID 2>/dev/null | awk -v p="$UNSHARE_PID" '$2==p {print $1; exit}')
 [ -n "$CONTAINER_PID" ] || CONTAINER_PID="$UNSHARE_PID"
-echo "$CONTAINER_PID" > "$STATE_DIR/container.pid"
+echo "$CONTAINER_PID" > "$RUN_DIR/container.pid"
 log "unshare wrapper PID: $UNSHARE_PID, container init PID: $CONTAINER_PID"
-[ -d "/proc/$CONTAINER_PID" ] || { log "ERROR: container exited; check /data/openwrt/init.log"; exit 1; }
+[ -d "/proc/$CONTAINER_PID" ] || { log "ERROR: container exited; check $LOG_DIR/init.log"; exit 1; }
 
 # ------------------------------------------------------------------------------
 # Move the physical LAN NIC into the container netns.
@@ -304,6 +306,9 @@ if [ -n "$RMNET_GW" ]; then
 else
     ip route replace default dev "$RMNET_IF" table "$TABLE_ID"
 fi
+# Keep the veth subnet on-link inside table 100; otherwise locally generated
+# replies to the container (source 10.200.1.1) follow the 5G default route.
+ip route replace "$HOST_NET" dev "$VETH_HOST" table "$TABLE_ID"
 
 ip rule del pref 100 2>/dev/null
 ip rule del pref 101 2>/dev/null
