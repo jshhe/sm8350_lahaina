@@ -81,6 +81,21 @@ exit 0
 EOF
 chmod 755 "$DEST_DIR/sbin/modprobe"
 
+# BusyBox mktemp in this rootfs has no default template: `mktemp -d` leaves
+# tdir empty, and OpenWrt's dropbear init then executes
+#     mv -f "${tdir}/"* /etc/dropbear/
+# which moves the entire rootfs (bin/lib/sbin/usr/www) into /etc/dropbear.
+# Force a template and guard the mv before the container ever starts.
+DB="$DEST_DIR/etc/init.d/dropbear"
+if [ -f "$DB" ]; then
+    sed -i 's|tdir=$(mktemp -d); chmod 0700 "${tdir}"|tdir=$(mktemp -d /tmp/dropbear.XXXXXX) \|\| return 0; chmod 0700 "${tdir}"|' "$DB"
+    sed -i 's|mv -f "${tdir}/"\* "${kdir}/"|[ -n "${tdir}" ] \&\& mv -f "${tdir}/"* "${kdir}/"|' "$DB"
+    grep -q 'mktemp -d /tmp/dropbear.XXXXXX' "$DB" || {
+        echo "[!] dropbear mktemp patch failed"
+        exit 1
+    }
+fi
+
 KVER=$(uname -r)
 mkdir -p "$DEST_DIR/lib/modules/$KVER"
 : > "$DEST_DIR/lib/modules/$KVER/modules.dep"
