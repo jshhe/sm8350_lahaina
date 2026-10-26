@@ -5,8 +5,11 @@
 # and keep it alive.
 #
 # Install:
-#   adb push service_openwrt_autorun.sh /data/adb/service.d/
-#   adb shell su -c "chmod 755 /data/adb/service.d/service_openwrt_autorun.sh"
+#   adb push service_openwrt_autorun.sh /data/local/tmp/
+#   adb shell su -c "mv /data/local/tmp/service_openwrt_autorun.sh /data/openwrt/scripts/"
+#   adb shell su -c "chmod 755 /data/openwrt/scripts/service_openwrt_autorun.sh"
+# Magisk entry (one line): /data/adb/service.d/00_openwrt.sh ->
+#   exec sh /data/openwrt/scripts/service_openwrt_autorun.sh
 #
 # Disable without removing:
 #   touch /data/openwrt/disable_autorun

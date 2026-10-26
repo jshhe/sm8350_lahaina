@@ -200,42 +200,52 @@ adb shell su -c "ip -br link"
 
 ### 6.2 推送到手机
 
-`/data/adb` 不能直接 `adb push`，先推到 `/sdcard/` 再 `su` 复制：
+`/data/openwrt` 是 root 目录，不能直接 `adb push`；先推到 `/data/local/tmp`，再用 `su` 归位。所有 OpenWrt 文件只放在 `/data/openwrt/` 下。
 
 ```powershell
-# 1) rootfs
-adb push openwrt_rootfs\openwrt-21.02.7-armvirt-64-default-rootfs.tar.gz /sdcard/
+# 1) 推送到临时目录
+adb push openwrt_rootfs\openwrt-21.02.7-armvirt-64-default-rootfs.tar.gz /data/local/tmp/
+adb push scripts\03_setup_openwrt_rootfs.sh /data/local/tmp/03_setup_openwrt_rootfs.sh
+adb push scripts\04_start_openwrt_and_network.sh /data/local/tmp/04_start_openwrt_and_network.sh
+adb push scripts\05b_cpu_charge_guard.sh /data/local/tmp/05b_cpu_charge_guard.sh
+adb push scripts\05_headless_power_control.sh /data/local/tmp/05_headless_power_control.sh
+adb push service_openwrt_autorun.sh /data/local/tmp/service_openwrt_autorun.sh
+adb push service_power_guard.sh /data/local/tmp/service_power_guard.sh
 
-# 2) 脚本
-adb push scripts\03_setup_openwrt_rootfs.sh /sdcard/03_setup_openwrt_rootfs.sh
-adb push scripts\04_start_openwrt_and_network.sh /sdcard/04_start_openwrt_and_network.sh
-adb push service_openwrt_autorun.sh /sdcard/service_openwrt_autorun.sh
+# 2) 归位到唯一目录
+adb shell su -c "mkdir -p /data/openwrt/scripts /data/openwrt/packages /data/openwrt/images /data/openwrt/run /data/openwrt/logs"
+adb shell su -c "mv /data/local/tmp/openwrt-21.02.7-armvirt-64-default-rootfs.tar.gz /data/openwrt/images/"
+adb shell su -c "mv /data/local/tmp/03_setup_openwrt_rootfs.sh /data/openwrt/scripts/"
+adb shell su -c "mv /data/local/tmp/04_start_openwrt_and_network.sh /data/openwrt/scripts/"
+adb shell su -c "mv /data/local/tmp/05b_cpu_charge_guard.sh /data/openwrt/scripts/"
+adb shell su -c "mv /data/local/tmp/05_headless_power_control.sh /data/openwrt/scripts/"
+adb shell su -c "mv /data/local/tmp/service_openwrt_autorun.sh /data/openwrt/scripts/"
+adb shell su -c "mv /data/local/tmp/service_power_guard.sh /data/openwrt/scripts/"
+adb shell su -c "chmod 755 /data/openwrt/scripts/*.sh"
 
-# 3) 复制到 root 可写目录并授权
-adb shell su -c "mkdir -p /data/adb/openwrt /data/adb/service.d"
-adb shell su -c "cp /sdcard/03_setup_openwrt_rootfs.sh /sdcard/04_start_openwrt_and_network.sh /data/adb/openwrt/"
-adb shell su -c "cp /sdcard/service_openwrt_autorun.sh /data/adb/service.d/"
-adb shell su -c "chmod 755 /data/adb/openwrt/*.sh /data/adb/service.d/service_openwrt_autorun.sh"
+# 3) 唯一 Magisk 入口
+adb shell su -c "printf '#!/system/bin/sh\nexec sh /data/openwrt/scripts/service_openwrt_autorun.sh\n' > /data/adb/service.d/00_openwrt.sh"
+adb shell su -c "chmod 755 /data/adb/service.d/00_openwrt.sh"
 ```
 
 ### 6.3 部署 rootfs
 
 ```bash
-adb shell su -c "sh /data/adb/openwrt/03_setup_openwrt_rootfs.sh"
+adb shell su -c "sh /data/openwrt/scripts/03_setup_openwrt_rootfs.sh"
 ```
 
 脚本会：
 
 - 解压到 `/data/openwrt/rootfs`；
 - 自动识别 21.02 / 23.05，选择 `option ifname` 或 `option device`；
-- 写入 `lan`（192.168.2.1/24）、`wan`（10.200.1.2/30）、`wan6`；
+- 写入 `lan`（192.168.2.1/24）、`wan`（10.200.1.2/30）；IPv6 由 `04` 按运营商 /64 动态配置（不使用 NAT66）；
 - 写入 `firewall`（LAN→WAN 转发 + masq）和 `dhcp`；
 - 用假 `modprobe` 绕过 OpenWrt 的 kmod 依赖（驱动已编进内核）。
 
 ### 6.4 启动容器与网络
 
 ```bash
-adb shell su -c "sh /data/adb/openwrt/04_start_openwrt_and_network.sh"
+adb shell su -c "sh /data/openwrt/scripts/04_start_openwrt_and_network.sh"
 ```
 
 脚本会：
@@ -257,14 +267,16 @@ http://192.168.2.1
 ### 6.5 开机自启
 
 ```bash
-adb shell su -c "sh /data/adb/service.d/service_openwrt_autorun.sh &"
+adb shell su -c "sh /data/adb/service.d/00_openwrt.sh &"
 ```
 
-或者直接重启手机，Magisk 会执行 `/data/adb/service.d/` 下的脚本。服务脚本会：
+或者直接重启手机，Magisk 会执行 `/data/adb/service.d/00_openwrt.sh`（唯一入口）。自启脚本会：
 
+- 先启动 CPU/充电守护（cpu7 离线、50–60% 停充）；
 - 等待 5G 数据接口拿到 IP；
+- 等待 USB 网卡 `eth0`（最多 60 秒）；
 - 如果容器没在跑，自动执行 `04`；
-- 每 30 秒检查一次 `procd` 是否存活。
+- 每 30 秒检查容器是否存活，并重新确保 `ip_forward` / 策略路由（Android netd 会重置它们）。
 
 ---
 

@@ -76,3 +76,27 @@
 - `build.config.lemonadep`：一加9 Pro 专用的 build.config 配置文件。
 - `fix_op9p_build_errors.patch`：社区验证过的编译报错修复补丁（解决部分 C 语言头文件规范、函数空参数警告等报错）。
 - `fetch_kernel.sh` / `fetch_kernel.ps1`：一键克隆脚本。
+
+---
+
+## 6. 运行目录约定（硬性规则）
+
+OpenWrt 相关的一切（包、软件、配置、脚本、镜像、状态、日志）**只允许**放在 `/data/openwrt/` 下，禁止散落到 `/data/adb/`、`/sdcard/`、`/data/local/tmp/` 等位置。
+
+```text
+/data/openwrt/
+├── rootfs/      # OpenWrt 系统：软件包、二进制、/etc/config 配置
+├── scripts/     # 03/04/05b、自启、守护脚本
+├── packages/    # .ipk 包（如 luci-base）
+├── images/      # rootfs tar.gz
+├── run/         # container.pid / power_guard.pid
+└── logs/        # autorun / network / power_guard / init 日志
+```
+
+Magisk 只保留一个入口：
+
+```text
+/data/adb/service.d/00_openwrt.sh   # 一行 exec，指向 /data/openwrt/scripts/service_openwrt_autorun.sh
+```
+
+新增任何 OpenWrt 相关文件时，必须放进上述目录；不得再创建 `/data/adb/openwrt/`，也不要把脚本/包放到 `/sdcard`、`/data/local/tmp`。

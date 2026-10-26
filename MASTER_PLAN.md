@@ -51,5 +51,5 @@
 6. **`scripts/04_start_openwrt_and_network.sh`**：自动启动容器、直通物理网卡、注入策略路由的主网关脚本（**完全不影响屏幕与 UI**）。
 7. **`scripts/05_headless_power_control.sh`**：熄屏、关渲染、离线 X1 超大核、限频、限充的温控脚本（生产服役模式）。
 8. **`scripts/06_restore_gui.sh`**：一键恢复安卓图形界面（点亮屏幕、启动合成器、恢复触控）。
-9. **`service_openwrt_autorun.sh`**：可直接放入 Magisk / KernelSU `/data/adb/service.d/` 的开机无感自启脚本。
+9. **`service_openwrt_autorun.sh`**：放在 `/data/openwrt/scripts/`，由唯一的 Magisk 入口 `/data/adb/service.d/00_openwrt.sh` 调用；负责开机自启、看门狗和 `ip_forward` 重断言。
 10. **`manifest_android14.xml` / `build.config.lemonadep` / `fix_op9p_build_errors.patch`**：官方内核源码构建配置与修复补丁。
